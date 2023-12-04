@@ -1,0 +1,49 @@
+results<-read.csv("xxxxxdds.csv",header = TRUE)
+sig_0.05<-subset(results,padj<0.05)
+
+EnrezID<-read.csv("Uniprot_to_ENTREZ_Cg.csv",header=TRUE)
+
+uniprotid<-sig_0.05$X
+
+Enrezid <-EnrezID$ENTREZID[match(uniprotid, EnrezID$Uniprot_ID)]
+head(Enrezid,300)
+
+sig_0.05$X<-Enrezid
+
+# Perform KEGG pathway enrichment analysis
+#BiocManager::install("clusterProfiler")
+library(clusterProfiler)
+kegg_enrichment <- enrichKEGG(gene = sig_0.05$X, organism = 'cge')
+
+# View the enriched pathways
+print(kegg_enrichment)
+head(kegg_enrichment, n = 50)
+
+dotplot(kegg_enrichment,showCategory = 15,font.size = 6)
+barplot(kegg_enrichment,showCategory = 15,font.size = 7)
+
+write.csv(as.data.frame(kegg_enrichment,n=100), 
+          file="kegg_enrichment_top100.csv")
+
+
+library(pathview)
+
+#########name the top foldchange with entrezid############
+
+foldchange<-sig_0.05$log2FoldChange
+
+foldchange<-na.omit(foldchange)
+
+names(foldchange)<-sig_0.05$X
+head(foldchange)
+has_na <- any(is.na(foldchange))
+print(has_na)
+# Choose a specific pathway from the enrichment result (for example, the first pathway)
+pathway_id <- kegg_enrichment$ID[1]
+library(pathview)
+# Map enriched genes to the selected KEGG pathway
+pathview(gene.data = foldchange,
+         pathway.id = pathway_id,
+         species = "cge",  #speciese
+         kegg.native = TRUE,
+         graph.outfile = paste0("pathway_", pathway_id, ".png"))  # Output pathway map file
